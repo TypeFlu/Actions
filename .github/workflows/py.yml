@@ -4,29 +4,30 @@ on:
   workflow_dispatch:
     inputs:
       image_url:
-        description: 'Direct Image URL'
+        description: 'Direct image URL (PNG/JPG)'
         required: true
 
 jobs:
   resize:
     runs-on: ubuntu-latest
+
     steps:
-    - name: Checkout
+    - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Download image
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: pip install pillow
+
+    - name: Download input image
       run: curl -L "${{ github.event.inputs.image_url }}" -o input.png
 
-    - name: Resize with Python
-      run: |
-        sudo apt update && sudo apt install -y python3-pip
-        pip install pillow
-        python3 -c "
-from PIL import Image;
-img = Image.open('input.png').convert('RGBA');
-img = img.resize((100, 100), Image.LANCZOS);
-img.save('emoji.png', 'PNG', optimize=True)
-"
+    - name: Run emoji resizer
+      run: python resize.py
 
     - name: Upload resized image
       uses: actions/upload-artifact@v4
