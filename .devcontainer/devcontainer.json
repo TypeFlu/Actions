@@ -1,0 +1,19 @@
+{
+  "name": "Ubuntu 24.04 LTS with Android SDK",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "ghcr.io/nordcominc/devcontainer-features/android-sdk:1": {}
+  },
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash"
+  },
+  "extensions": [
+    "ms-vscode.cpptools",
+    "ms-azuretools.vscode-docker"
+  ],
+  "forwardPorts": [],
+  "postCreateCommand": "apt-get update && apt-get install -y build-essential curl git",
+  "remoteUser": "vscode"
+}
