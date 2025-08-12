@@ -1,19 +1,23 @@
 {
-  "name": "Ubuntu 24.04 LTS with Android SDK",
+  "name": "Ubuntu 24.04 LTS - Android SDK + SSH",
   "build": {
     "dockerfile": "Dockerfile"
   },
   "features": {
-    "ghcr.io/nordcominc/devcontainer-features/android-sdk:1": {}
+    "ghcr.io/nordcominc/devcontainer-features/android-sdk:1": {},
+    "ghcr.io/devcontainers/features/sshd:1": {
+      "version": "latest"
+    }
   },
   "settings": {
-    "terminal.integrated.shell.linux": "/bin/bash"
+    "terminal.integrated.defaultProfile.linux": "bash"
   },
   "extensions": [
     "ms-vscode.cpptools",
-    "ms-azuretools.vscode-docker"
+    "ms-azuretools.vscode-docker",
+    "ms-vscode.js-debug-nightly"
   ],
   "forwardPorts": [],
-  "postCreateCommand": "apt-get update && apt-get install -y build-essential curl git",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y build-essential curl git",
   "remoteUser": "vscode"
 }
