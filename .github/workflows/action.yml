@@ -14,10 +14,11 @@ on:
 
 jobs:
   fetch-releases:
-    name:  Fetch Releases
+    name: Fetch Releases
     runs-on: ubuntu-latest
     outputs:
       artifact_name: release-message
+      repo_full_name: ${{ github.event.inputs.repo_owner }}/${{ github.event.inputs.repo_name }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
@@ -39,14 +40,40 @@ jobs:
         run: npm start
 
       - name: Upload Message Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release-message
           path: telegram-message.txt
           retention-days: 1
 
-  send-notification:
-    name: Send Telegram Notification
+  send-detailed-notification:
+    name: Send Detailed Notification
+    runs-on: ubuntu-latest
+    needs: fetch-releases
+    steps:
+      - name: Download Message Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.fetch-releases.outputs.artifact_name }}
+
+      - name: Read Detailed Message
+        id: read_message
+        run: |
+          MESSAGE=$(cat telegram-message.txt)
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo "$MESSAGE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Dispatch Detailed Message
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: markdown
+          message: ${{ steps.read_message.outputs.message }}
+
+  send-summary-notification:
+    name: Send Summary Notification
     runs-on: ubuntu-latest
     needs: fetch-releases
     steps:
@@ -55,19 +82,28 @@ jobs:
         with:
           name: ${{ needs.fetch-releases.outputs.artifact_name }}
 
-      - name: Read Message from File
-        id: read_message
+      - name: Generate Summary Message
+        id: generate_summary
         run: |
-          MESSAGE=$(cat telegram-message.txt)
+          # Count lines, skipping the header (first 2 lines) to get the number of releases
+          RELEASE_COUNT=$(tail -n +3 telegram-message.txt | wc -l)
+          REPO_NAME="${{ needs.fetch-releases.outputs.repo_full_name }}"
+          
+          if [ "$RELEASE_COUNT" -gt 0 ]; then
+            MESSAGE="*✅ Summary: Found ${RELEASE_COUNT} releases for ${REPO_NAME}.*"
+          else
+            MESSAGE="*ℹ️ Summary: No releases found for ${REPO_NAME}.*"
+          fi
+          
           echo "message<<EOF" >> $GITHUB_OUTPUT
           echo "$MESSAGE" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Dispatch Telegram Message
+      - name: Dispatch Summary Message
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_TO }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
           format: markdown
-          message: ${{ steps.read_message.outputs.message }}
+          message: ${{ steps.generate_summary.outputs.message }}
 
