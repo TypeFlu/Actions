@@ -1,0 +1,60 @@
+name: Fetch Repository Releases
+on:
+  workflow_dispatch:
+    inputs:
+      repo_owner:
+        description: 'The owner of the repository (e.g., "appleboy")'
+        required: true
+        type: string
+      repo_name:
+        description: 'The name of the repository (e.g., "telegram-action")'
+        required: true
+        type: string
+
+jobs:
+  fetch-and-notify:
+    name: Fetch Releases and Notify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Releases via GitHub API
+        id: fetch_releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -z "$releases_json" ] || [ "$releases_json" == "[]" ]; then
+            echo "message=No releases found for ${{ github.event.inputs.repo_owner }}/${{ github.event.inputs.repo_name }}." >> $GITHUB_OUTPUT
+          else
+            echo "releases<<EOF" >> $GITHUB_OUTPUT
+            echo "$releases_json" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Format Release List for Telegram
+        id: format_message
+        run: |
+          releases_data='${{ steps.fetch_releases.outputs.releases }}'
+          repo_full_name="${{ github.event.inputs.repo_owner }}/${{ github.event.inputs.repo_name }}"
+
+          if [ -z "$releases_data" ]; then
+            message="*INFO: No releases found for ${repo_full_name}*"
+          else
+            header="* All Releases for ${repo_full_name}*\n\n"
+            
+            release_list=$(echo "$releases_data" | jq -r '. | "*-* [\(.name) (\(.tagName))](\(.url)) - _Published on \(.published)_"')
+            
+            message="${header}${release_list}"
+          fi
+
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$message" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Send Release List to Telegram
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: markdown
+          # The message is taken directly from the output of the previous formatting step
+          message: ${{ steps.format_message.outputs.message }}
+
